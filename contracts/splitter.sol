@@ -1,26 +1,51 @@
 pragma solidity ^0.4.21;
 
-contract b9Splitter {
-    address public Alice;
-    address public Bob;
-    address public Carol;
+contract B9Splitter {
+    address public alice;
+    address public bob;
+    address public carol;
+    mapping(address => uint) public balances;
+    
+    event logSplitFunds(address splitter, uint aliceHas, uint bobHas, uint carolHas);
+    event logWithdrawnFunds(address withdrawer, uint amountWithdrawn);
 
     
     constructor(address _address1, address _address2) public {
-        Alice = msg.sender;
-        Bob = _address1;
-        Carol = _address2;
+        alice = msg.sender;
+        bob = _address1;
+        carol = _address2;
     }
     
-    modifier onlyBy {
-         require( msg.sender == Alice);
+    modifier onlyAlice {
+         require( msg.sender == alice);
          _;
      }
      
-    function split () public payable onlyBy {
-        if(msg.value == 0) return;
-        Carol.transfer((msg.value)/2);
-        Bob.transfer((msg.value)/2);
+    function split () public payable onlyAlice returns(bool success) {
+        require(msg.value > 0);
+        if (msg.value % 2 == 0) {
+            balances[bob] += (msg.value)/2;
+            balances[carol] += (msg.value)/2;
+            return true;
+         }
+        if (msg.value % 2 == 1) {
+            balances[bob] += (msg.value - 1)/2;
+            balances[carol] += (msg.value - 1)/2;
+            balances[alice] += 1;
+            return true;
+        }
+        emit logSplitFunds(msg.sender, balances[alice], balances[bob], balances[carol]);
+    }
+    
+    function withdrawFunds () public returns(bool success) {
+        uint amount = balances[msg.sender];
+        if(amount > 0) {
+            balances[msg.sender] = 0;
+            msg.sender.transfer(amount);
+            return true;
+        }
+        emit logWithdrawnFunds(msg.sender, amount);
         
-    } 
+    }
 }
+
